@@ -7,6 +7,7 @@
  */
 import type { AssetCategory } from './assetCategory';
 import type { AssetCurrency } from './assetCurrency';
+import type { AssetPriceDisplay } from './assetPriceDisplay';
 
 export interface Asset {
   id: number;
@@ -14,6 +15,17 @@ export interface Asset {
   description: string;
   price: number;
   currency: AssetCurrency;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  robux_price: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  dollar_price: number | null;
+  price_display: AssetPriceDisplay;
   category: AssetCategory;
   image_urls: string[];
   discord_link: string;

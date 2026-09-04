@@ -17,6 +17,15 @@ export const AssetCurrency = {
   Robux: 'Robux',
 } as const;
 
+export type AssetPriceDisplay = typeof AssetPriceDisplay[keyof typeof AssetPriceDisplay];
+
+
+export const AssetPriceDisplay = {
+  Robux: 'Robux',
+  USD: 'USD',
+  Both: 'Both',
+} as const;
+
 export type AssetCategory = typeof AssetCategory[keyof typeof AssetCategory];
 
 
@@ -33,6 +42,17 @@ export interface Asset {
   description: string;
   price: number;
   currency: AssetCurrency;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  robux_price: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  dollar_price: number | null;
+  price_display: AssetPriceDisplay;
   category: AssetCategory;
   image_urls: string[];
   discord_link: string;
@@ -46,6 +66,15 @@ export type AssetInputCurrency = typeof AssetInputCurrency[keyof typeof AssetInp
 export const AssetInputCurrency = {
   USD: 'USD',
   Robux: 'Robux',
+} as const;
+
+export type AssetInputPriceDisplay = typeof AssetInputPriceDisplay[keyof typeof AssetInputPriceDisplay];
+
+
+export const AssetInputPriceDisplay = {
+  Robux: 'Robux',
+  USD: 'USD',
+  Both: 'Both',
 } as const;
 
 export type AssetInputCategory = typeof AssetInputCategory[keyof typeof AssetInputCategory];
@@ -66,6 +95,17 @@ export interface AssetInput {
   /** @minimum 0 */
   price: number;
   currency: AssetInputCurrency;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  robux_price?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  dollar_price?: number | null;
+  price_display: AssetInputPriceDisplay;
   category: AssetInputCategory;
   /** @minItems 1 */
   image_urls: string[];
@@ -78,6 +118,15 @@ export type AssetUpdateCurrency = typeof AssetUpdateCurrency[keyof typeof AssetU
 export const AssetUpdateCurrency = {
   USD: 'USD',
   Robux: 'Robux',
+} as const;
+
+export type AssetUpdatePriceDisplay = typeof AssetUpdatePriceDisplay[keyof typeof AssetUpdatePriceDisplay];
+
+
+export const AssetUpdatePriceDisplay = {
+  Robux: 'Robux',
+  USD: 'USD',
+  Both: 'Both',
 } as const;
 
 export type AssetUpdateCategory = typeof AssetUpdateCategory[keyof typeof AssetUpdateCategory];
@@ -98,6 +147,17 @@ export interface AssetUpdate {
   /** @minimum 0 */
   price?: number;
   currency?: AssetUpdateCurrency;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  robux_price?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  dollar_price?: number | null;
+  price_display?: AssetUpdatePriceDisplay;
   category?: AssetUpdateCategory;
   /** @minItems 1 */
   image_urls?: string[];

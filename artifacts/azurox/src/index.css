@@ -137,7 +137,7 @@
 }
 
 @layer utilities {
-  .font-display { font-family: var(--app-font-serif); }
+  .font-display { font-family: var(--app-font-serif); font-weight: 700; }
   .font-mono { font-family: var(--app-font-mono); }
   .text-balance { text-wrap: balance; }
   .azurox-grid {
@@ -176,3 +176,11 @@
 @keyframes azurox-pulse { 0%,100% { opacity: .52; transform: scale(1); } 50% { opacity: .9; transform: scale(1.06); } }
 .animate-rise { animation: azurox-rise .55s cubic-bezier(.2,.8,.2,1) both; }
 .animate-pulse-soft { animation: azurox-pulse 2.8s ease-in-out infinite; }
+@keyframes azurox-dialog { from { opacity: 0; transform: translateY(-10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes azurox-drift { 0%,100% { transform: translate3d(0, 0, 0) rotate(12deg); } 50% { transform: translate3d(-14px, 12px, 0) rotate(18deg); } }
+@keyframes azurox-spin { to { transform: rotate(360deg); } }
+.animate-dialog { animation: azurox-dialog .28s cubic-bezier(.2,.8,.2,1) both; }
+.animate-drift { animation: azurox-drift 7s ease-in-out infinite; }
+.animate-spin-slow { animation: azurox-spin 8s linear infinite; }
+.asset-visual { transition: filter .45s ease; }
+.group:hover .asset-visual { filter: saturate(1.14) brightness(1.05); }

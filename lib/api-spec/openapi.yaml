@@ -263,6 +263,17 @@ components:
         currency:
           type: string
           enum: [USD, Robux]
+        robux_price:
+          type: ["number", "null"]
+          format: double
+          minimum: 0
+        dollar_price:
+          type: ["number", "null"]
+          format: double
+          minimum: 0
+        price_display:
+          type: string
+          enum: [Robux, USD, Both]
         category:
           type: string
           enum: [UI, Scripts, "3D Models", Maps]
@@ -284,6 +295,9 @@ components:
         - description
         - price
         - currency
+        - robux_price
+        - dollar_price
+        - price_display
         - category
         - image_urls
         - discord_link
@@ -305,6 +319,17 @@ components:
         currency:
           type: string
           enum: [USD, Robux]
+        robux_price:
+          type: ["number", "null"]
+          format: double
+          minimum: 0
+        dollar_price:
+          type: ["number", "null"]
+          format: double
+          minimum: 0
+        price_display:
+          type: string
+          enum: [Robux, USD, Both]
         category:
           type: string
           enum: [UI, Scripts, "3D Models", Maps]
@@ -320,6 +345,7 @@ components:
         - description
         - price
         - currency
+        - price_display
         - category
         - image_urls
         - discord_link
@@ -339,6 +365,17 @@ components:
         currency:
           type: string
           enum: [USD, Robux]
+        robux_price:
+          type: ["number", "null"]
+          format: double
+          minimum: 0
+        dollar_price:
+          type: ["number", "null"]
+          format: double
+          minimum: 0
+        price_display:
+          type: string
+          enum: [Robux, USD, Both]
         category:
           type: string
           enum: [UI, Scripts, "3D Models", Maps]

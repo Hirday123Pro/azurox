@@ -7,6 +7,7 @@
  */
 import type { AssetUpdateCategory } from './assetUpdateCategory';
 import type { AssetUpdateCurrency } from './assetUpdateCurrency';
+import type { AssetUpdatePriceDisplay } from './assetUpdatePriceDisplay';
 
 export interface AssetUpdate {
   /** @minLength 1 */
@@ -16,6 +17,17 @@ export interface AssetUpdate {
   /** @minimum 0 */
   price?: number;
   currency?: AssetUpdateCurrency;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  robux_price?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  dollar_price?: number | null;
+  price_display?: AssetUpdatePriceDisplay;
   category?: AssetUpdateCategory;
   /** @minItems 1 */
   image_urls?: string[];

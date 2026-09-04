@@ -7,6 +7,7 @@
  */
 import type { AssetInputCategory } from './assetInputCategory';
 import type { AssetInputCurrency } from './assetInputCurrency';
+import type { AssetInputPriceDisplay } from './assetInputPriceDisplay';
 
 export interface AssetInput {
   /** @minLength 1 */
@@ -16,6 +17,17 @@ export interface AssetInput {
   /** @minimum 0 */
   price: number;
   currency: AssetInputCurrency;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  robux_price?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  dollar_price?: number | null;
+  price_display: AssetInputPriceDisplay;
   category: AssetInputCategory;
   /** @minItems 1 */
   image_urls: string[];

@@ -6,14 +6,12 @@ import type { Asset, AssetCategory } from '@workspace/api-client-react';
 import { AssetVisual } from '@/components/AssetVisual';
 import { PageShell, SiteHeader } from '@/components/SiteChrome';
 import { SEED_ASSETS, categoryMeta } from '@/lib/seed';
+import { formatRobux, formatUsd, getAssetPrices } from '@/lib/pricing';
 
 const categories: Array<'All' | AssetCategory> = ['All', 'UI', 'Scripts', '3D Models', 'Maps'];
 
-function price(asset: Asset) {
-  return asset.currency === 'USD' ? `$${asset.price.toFixed(2)}` : `${asset.price.toLocaleString()} R$`;
-}
-
 function AssetCard({ asset, index }: { asset: Asset; index: number }) {
+  const prices = getAssetPrices(asset);
   return (
     <Link href={`/assets/${asset.id}`} className="group animate-rise block overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-lg" style={{ animationDelay: `${Math.min(index * 70, 400)}ms` }} data-testid={`card-asset-${asset.id}`}>
       <AssetVisual asset={asset} />
@@ -25,7 +23,11 @@ function AssetCard({ asset, index }: { asset: Asset; index: number }) {
         <h3 className="font-display text-[18px] font-semibold leading-[1.12] tracking-[-.035em] transition-colors group-hover:text-primary">{asset.title}</h3>
         <p className="mt-2 line-clamp-2 text-[12px] leading-[1.55] text-muted-foreground">{asset.description}</p>
         <div className="mt-5 flex items-center justify-between border-t border-border/80 pt-4">
-          <span className="font-mono text-[14px] font-medium text-foreground">{price(asset)}</span>
+           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[14px] font-bold text-foreground">
+             {(prices.display === 'Robux' || prices.display === 'Both') && prices.robux !== null && <span>{formatRobux(prices.robux)}</span>}
+             {(prices.display === 'Both') && prices.robux !== null && prices.usd !== null && <span className="text-muted-foreground">·</span>}
+             {(prices.display === 'USD' || prices.display === 'Both') && prices.usd !== null && <span>{formatUsd(prices.usd)}</span>}
+           </span>
           <span className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground transition-colors group-hover:text-primary">inspect <span className="text-primary">↗</span></span>
         </div>
       </div>
@@ -64,17 +66,17 @@ export default function Marketplace() {
       <main>
         <section className="relative overflow-hidden border-b border-border bg-[#10253d] text-[#e9fbff]">
           <div className="absolute inset-0 opacity-25 azurox-grid" />
-          <div className="absolute -right-24 -top-36 h-[520px] w-[520px] rounded-full bg-[#18d5e4]/15 blur-3xl" />
+           <div className="absolute -right-24 -top-36 h-[520px] w-[520px] animate-pulse-soft rounded-full bg-[#18d5e4]/15 blur-3xl" />
           <div className="relative mx-auto grid max-w-[1380px] gap-12 px-5 pb-16 pt-14 md:grid-cols-[1.1fr_.9fr] md:items-end md:pb-20 md:pt-20 lg:px-10">
             <div className="animate-rise">
               <div className="mb-7 flex items-center gap-3 font-mono text-[10px] uppercase tracking-[.24em] text-[#84eaf2]"><span className="h-px w-8 bg-[#84eaf2]" />the rare drop archive</div>
-              <h1 className="max-w-[760px] font-display text-[clamp(3.4rem,7.5vw,7.5rem)] font-semibold leading-[.87] tracking-[-.075em]">Make your<br /><span className="text-[#54deec]">next world</span> felt.</h1>
+              <h1 className="max-w-[760px] font-display text-[clamp(3.4rem,7.5vw,7.5rem)] font-extrabold leading-[.87] tracking-[-.075em]">Make your<br /><span className="text-[#54deec]">next world</span> felt.</h1>
               <p className="mt-8 max-w-[520px] text-[15px] leading-[1.7] text-[#b5d5dc]">High-signal scripts, interfaces, models, and maps for creators who care about the last ten percent. Browse the archive. Find the piece that changes the whole build.</p>
             </div>
             <div className="relative hidden min-h-[240px] md:block">
-              <div className="absolute right-[5%] top-0 h-48 w-48 rotate-[12deg] rounded-[32px] border border-[#81f7ff]/30 bg-[#21bfd0]/15 shadow-2xl backdrop-blur-sm" />
-              <div className="absolute right-[18%] top-12 h-48 w-48 -rotate-[18deg] rounded-[32px] border border-[#e9d889]/25 bg-[#e9d889]/10 shadow-2xl backdrop-blur-sm" />
-              <div className="absolute bottom-1 right-[36%] h-24 w-24 rotate-45 rounded-[20px] border border-[#ffae98]/40 bg-[#e78373]/20" />
+               <div className="absolute right-[5%] top-0 h-48 w-48 animate-drift rounded-[32px] border border-[#81f7ff]/30 bg-[#21bfd0]/15 shadow-2xl backdrop-blur-sm" />
+               <div className="absolute right-[18%] top-12 h-48 w-48 animate-drift rounded-[32px] border border-[#e9d889]/25 bg-[#e9d889]/10 shadow-2xl backdrop-blur-sm" style={{ animationDelay: '1.2s' }} />
+               <div className="absolute bottom-1 right-[36%] h-24 w-24 animate-pulse-soft rotate-45 rounded-[20px] border border-[#ffae98]/40 bg-[#e78373]/20" />
               <div className="absolute bottom-3 right-0 font-mono text-[10px] uppercase tracking-[.2em] text-[#7397a9]">AZ / 026 — OPEN LIBRARY</div>
             </div>
           </div>
@@ -91,7 +93,7 @@ export default function Marketplace() {
 
         <section className="mx-auto max-w-[1380px] px-5 pb-20 pt-16 lg:px-10">
           <div className="mb-8 flex flex-col gap-5 border-b border-border pb-7 lg:flex-row lg:items-end lg:justify-between">
-            <div><div className="mb-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.2em] text-primary"><Sparkles className="h-3.5 w-3.5" />curated, not crowded</div><h2 className="font-display text-4xl font-semibold tracking-[-.06em]">Browse the archive</h2></div>
+             <div><div className="mb-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.2em] text-primary"><Sparkles className="h-3.5 w-3.5 animate-spin-slow" />curated, not crowded</div><h2 className="font-display text-4xl font-extrabold tracking-[-.06em]">Browse the archive</h2></div>
             <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
               <label className="relative block min-w-0 flex-1 sm:min-w-[260px]"><Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder="Search the archive" className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary" data-testid="input-search-assets" />{query && <button type="button" onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" data-testid="button-clear-search"><X className="h-4 w-4" /></button>}</label>
               <div className="relative">
