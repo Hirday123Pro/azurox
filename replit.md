@@ -1,6 +1,6 @@
-# [Project name]
+# Azurox Asset Marketplace
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Azurox is a premium Roblox asset discovery marketplace with Discord-only manual fulfillment and a protected studio dashboard.
 
 ## Run & Operate
 
@@ -22,23 +22,36 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/azurox/src/pages/marketplace.tsx` — public archive browse, search, filtering, sorting, and summary
+- `artifacts/azurox/src/pages/asset-detail.tsx` — asset gallery, metadata, related drops, and Discord handoff
+- `artifacts/azurox/src/pages/admin.tsx` — first-run setup/login and protected asset CRUD/password management
+- `artifacts/azurox/src/index.css` — Azurox theme, typography, texture, and motion tokens
+- `lib/api-spec/openapi.yaml` — source of truth for the asset/admin API
+- `artifacts/api-server/src/routes/` — Express handlers for assets and admin sessions
+- `lib/db/src/schema/assets.ts` — PostgreSQL/Drizzle schema for `assets` and `admin`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Public browsing remains available without authentication; only asset mutations require the admin session.
+- Orders intentionally redirect to each asset's `discord_link`; there is no checkout or payment gateway.
+- The initial admin password is created from the `/admin` first-run screen and stored as a scrypt hash with a unique salt.
+- The frontend keeps a meaningful local preview library as a graceful fallback when the API is unavailable.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Browse curated UI, Scripts, 3D Models, and Maps drops.
+- Search by title/description, filter by collection, and sort by newest/oldest/price.
+- Open detail pages with preview artwork, pricing, related drops, and a Discord order CTA.
+- Manage the archive from `/admin` with setup/login, create/edit/delete, and password change.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+No additional preferences recorded.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The web artifact build expects `PORT` and `BASE_PATH` from its managed workflow; use the workflow for preview runs.
+- The API contract is OpenAPI-first; rerun codegen after changing `lib/api-spec/openapi.yaml`.
 
 ## Pointers
 

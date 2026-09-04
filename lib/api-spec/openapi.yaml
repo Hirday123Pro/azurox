@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: assets
+    description: Public marketplace assets
+  - name: admin
+    description: Protected asset administration
 paths:
   /healthz:
     get:
@@ -24,7 +28,218 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /assets:
+    get:
+      operationId: listAssets
+      tags: [assets]
+      summary: List marketplace assets
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [newest, oldest, price_low, price_high]
+            default: newest
+      responses:
+        "200":
+          description: Marketplace assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Asset"
+    post:
+      operationId: createAsset
+      tags: [admin]
+      summary: Create a marketplace asset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetInput"
+      responses:
+        "201":
+          description: Created asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /assets/{id}:
+    get:
+      operationId: getAsset
+      tags: [assets]
+      summary: Get an asset by id
+      parameters:
+        - $ref: "#/components/parameters/AssetId"
+      responses:
+        "200":
+          description: Marketplace asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateAsset
+      tags: [admin]
+      summary: Update a marketplace asset
+      parameters:
+        - $ref: "#/components/parameters/AssetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetUpdate"
+      responses:
+        "200":
+          description: Updated asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteAsset
+      tags: [admin]
+      summary: Delete a marketplace asset
+      parameters:
+        - $ref: "#/components/parameters/AssetId"
+      responses:
+        "204":
+          description: Asset deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /marketplace/summary:
+    get:
+      operationId: getMarketplaceSummary
+      tags: [assets]
+      summary: Get marketplace summary
+      responses:
+        "200":
+          description: Marketplace totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketplaceSummary"
+  /admin/status:
+    get:
+      operationId: getAdminStatus
+      tags: [admin]
+      summary: Get admin session status
+      responses:
+        "200":
+          description: Admin session status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatus"
+  /admin/setup:
+    post:
+      operationId: setupAdmin
+      tags: [admin]
+      summary: Create the initial admin password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminPasswordInput"
+      responses:
+        "201":
+          description: Admin created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatus"
+        "409":
+          description: Admin already exists
+  /admin/login:
+    post:
+      operationId: loginAdmin
+      tags: [admin]
+      summary: Start an admin session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminPasswordInput"
+      responses:
+        "200":
+          description: Admin session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatus"
+        "401":
+          description: Invalid password
+  /admin/logout:
+    post:
+      operationId: logoutAdmin
+      tags: [admin]
+      summary: End an admin session
+      responses:
+        "204":
+          description: Admin session ended
+  /admin/password:
+    patch:
+      operationId: changeAdminPassword
+      tags: [admin]
+      summary: Change the admin password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "204":
+          description: Password changed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
+  parameters:
+    AssetId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: number
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +248,156 @@ components:
           type: string
       required:
         - status
+    Asset:
+      type: object
+      properties:
+        id:
+          type: number
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          format: double
+        currency:
+          type: string
+          enum: [USD, Robux]
+        category:
+          type: string
+          enum: [UI, Scripts, "3D Models", Maps]
+        image_urls:
+          type: array
+          items:
+            type: string
+        discord_link:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - description
+        - price
+        - currency
+        - category
+        - image_urls
+        - discord_link
+        - created_at
+        - updated_at
+    AssetInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        price:
+          type: number
+          format: double
+          minimum: 0
+        currency:
+          type: string
+          enum: [USD, Robux]
+        category:
+          type: string
+          enum: [UI, Scripts, "3D Models", Maps]
+        image_urls:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        discord_link:
+          type: string
+      required:
+        - title
+        - description
+        - price
+        - currency
+        - category
+        - image_urls
+        - discord_link
+    AssetUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        price:
+          type: number
+          format: double
+          minimum: 0
+        currency:
+          type: string
+          enum: [USD, Robux]
+        category:
+          type: string
+          enum: [UI, Scripts, "3D Models", Maps]
+        image_urls:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        discord_link:
+          type: string
+    MarketplaceSummary:
+      type: object
+      properties:
+        asset_count:
+          type: number
+        category_count:
+          type: number
+        newest_asset:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - asset_count
+        - category_count
+        - newest_asset
+    AdminStatus:
+      type: object
+      properties:
+        configured:
+          type: boolean
+        authenticated:
+          type: boolean
+      required:
+        - configured
+        - authenticated
+    AdminPasswordInput:
+      type: object
+      properties:
+        password:
+          type: string
+          minLength: 8
+      required:
+        - password
+    ChangePasswordInput:
+      type: object
+      properties:
+        current_password:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          minLength: 8
+      required:
+        - current_password
+        - new_password
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 

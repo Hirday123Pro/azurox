@@ -1,0 +1,58 @@
+You are an expert full-stack web developer and UI/UX designer. Your task is to build a complete, production-ready web application for a Roblox asset marketplace called "Azurox". 
+
+### 1. Project Overview
+Azurox is a premium marketplace for high-quality Roblox assets (scripts, 3D models, UI packs). **Crucial constraint:** There is NO automated checkout or payment gateway on the site. The website serves purely as a discovery and showcase platform. When a user clicks "Order" or "Buy", it must redirect them to a specific Discord server link or Discord ticket channel for manual fulfillment.
+
+### 2. Tech Stack Recommendations
+*   **Frontend:** Next.js (App Router), React, TypeScript.
+*   **Styling:** Tailwind CSS + Shadcn UI (for clean, accessible components).
+*   **Icons:** Lucide React.
+*   **State Management:** Zustand or React Context.
+*   **Backend & Database:** Supabase (for handling asset data, admin authentication, and secure password updates).
+
+### 3. Design & UI/UX Guidelines
+*   **Theme:** Deep, premium blue aesthetic. Use colors inspired by the Roblox ecosystem but modernized:
+    *   Background (Dark Mode): Deep Navy/Slate (`#0A0F1D` or `#1E293B`).
+    *   Primary Accents: Vibrant Azurox Blue (`#3661FF`) and Neon Cyan (`#00E5FF`).
+    *   Text: Crisp white and light gray for high readability.
+*   **Dark Mode:** The site should be dark-mode first, with seamless support for light mode if toggled. 
+*   **Layout:** A highly polished, spacious grid layout for the asset showcase. Hover effects should feel smooth and premium (e.g., slight lift, border glow).
+*   **Imagery:** Support high-quality image previews. Asset cards should crop/scale images beautifully.
+
+### 4. Core User-Facing Features
+*   **Hero Section:** A clean header with the "Azurox" branding, a search bar, and a call-to-action to join the Discord community.
+*   **Asset Marketplace Grid:** 
+    *   Cards displaying: Asset Thumbnail, Title, Category, and Price (in Robux or USD).
+*   **Filtering & Sorting:**
+    *   Sort by: Newest, Oldest, Price (Low to High), Price (High to Low).
+    *   Filter by Category (e.g., UI, Scripts, 3D Models, Maps).
+*   **Asset Details Page:**
+    *   Image Gallery/Carousel for multiple high-res preview images.
+    *   Large, rich-text description area for extensive details and features.
+    *   Primary Call-to-Action: A prominent "Order via Discord" button that uses the unique Discord link assigned to that specific asset.
+
+### 5. Admin Dashboard (Protected Route)
+*   **Security:** A secure login page locked by a password. The admin must have the ability to change this password from within the dashboard.
+*   **Asset Management (CRUD):**
+    *   **Add/Create:** Upload images/URLs, set Title, Description, Price, Category, and the unique Discord Redirect URL.
+    *   **Edit:** Modify existing assets easily.
+    *   **Delete:** Remove assets with a confirmation prompt.
+*   **Dashboard UI:** A simple, clean, tabular layout to see all live assets at a glance, with quick-action buttons for Edit and Delete.
+
+### 6. Database Schema Requirements (Supabase/PostgreSQL)
+Please create the necessary schemas for:
+1.  `assets`: id, title, description, price, category, image_urls (array), discord_link, created_at.
+2.  `admin`: Basic secure setup to handle the admin authentication state and password changes.
+
+### 7. Implementation Steps for the AI
+1.  Initialize the Next.js project and install Tailwind + Shadcn UI.
+2.  Set up the global CSS for the Azurox dark/blue theme.
+3.  Build the reusable UI components (Navbar, Footer, Asset Card, Button).
+4.  Implement the public-facing pages (Home Grid, Asset Details Page).
+5.  Implement the filtering, sorting, and search logic.
+6.  Set up the database integration (mock data first, then wire up Supabase).
+7.  Build the secure `/admin` route with the login gate.
+8.  Build the admin dashboard for managing assets and updating the password.
+9.  Ensure all routing and Discord redirections work flawlessly.
+
+Please provide the code modularly, starting with the project setup, theme configuration, and database schema. Then move into the UI components.

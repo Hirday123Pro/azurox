@@ -1,0 +1,1 @@
+- [OpenAPI Zod compatibility](codegen-zod-compatibility.md) — keep generated validation helpers aligned with the workspace Zod runtime.
