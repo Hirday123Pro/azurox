@@ -162,6 +162,27 @@ export interface CategoryInput {
   name: string;
 }
 
+export interface SiteBanner {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  text: string;
+  href: string;
+  enabled: boolean;
+}
+
+export interface SiteSettings {
+  order_discord_link: string;
+  /** @maxItems 4 */
+  banners: SiteBanner[];
+}
+
+export interface SiteSettingsInput {
+  order_discord_link: string;
+  /** @maxItems 4 */
+  banners: SiteBanner[];
+}
+
 export interface AdminStatus {
   configured: boolean;
   authenticated: boolean;

@@ -215,6 +215,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MarketplaceSummary"
+  /settings:
+    get:
+      operationId: getPublicSettings
+      tags: [assets]
+      summary: Get public marketplace settings
+      responses:
+        "200":
+          description: Public settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
   /admin/status:
     get:
       operationId: getAdminStatus
@@ -289,6 +301,26 @@ paths:
       responses:
         "204":
           description: Password changed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /admin/settings:
+    patch:
+      operationId: updateSiteSettings
+      tags: [admin]
+      summary: Update public marketplace settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteSettingsInput"
+      responses:
+        "200":
+          description: Updated public settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
         "401":
           $ref: "#/components/responses/Unauthorized"
 components:
@@ -523,6 +555,50 @@ components:
           minLength: 1
       required:
         - name
+    SiteBanner:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        text:
+          type: string
+          minLength: 1
+        href:
+          type: string
+        enabled:
+          type: boolean
+      required:
+        - id
+        - text
+        - href
+        - enabled
+    SiteSettings:
+      type: object
+      properties:
+        order_discord_link:
+          type: string
+        banners:
+          type: array
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/SiteBanner"
+      required:
+        - order_discord_link
+        - banners
+    SiteSettingsInput:
+      type: object
+      properties:
+        order_discord_link:
+          type: string
+        banners:
+          type: array
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/SiteBanner"
+      required:
+        - order_discord_link
+        - banners
     AdminStatus:
       type: object
       properties:

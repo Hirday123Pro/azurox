@@ -1,11 +1,12 @@
 import { ArrowLeft, ArrowUpRight, Check, ChevronDown, KeyRound, LogOut, Pencil, Plus, Save, Shield, Trash2, X } from 'lucide-react';
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetAdminStatusQueryKey,
   getGetAssetQueryKey,
   getGetMarketplaceSummaryQueryKey,
+  getGetPublicSettingsQueryKey,
   getListCategoriesQueryKey,
   getListAssetsQueryKey,
   useChangeAdminPassword,
@@ -14,19 +15,21 @@ import {
   useDeleteCategory,
   useDeleteAsset,
   useGetAdminStatus,
+  useGetPublicSettings,
   useListAssets,
   useListCategories,
   useLoginAdmin,
   useLogoutAdmin,
   useSetupAdmin,
   useUpdateAsset,
+  useUpdateSiteSettings,
 } from '@workspace/api-client-react';
-import type { Asset, AssetInput, Category } from '@workspace/api-client-react';
+import type { Asset, AssetInput, Category, SiteBanner, SiteSettings } from '@workspace/api-client-react';
 import { AssetVisual } from '@/components/AssetVisual';
 import { BrandMark, PageShell } from '@/components/SiteChrome';
 import { SEED_ASSETS } from '@/lib/seed';
 import { formatRobux, formatUsd, getAssetPrices } from '@/lib/pricing';
-import { loadLocalAssets, loadLocalCategories, saveLocalAssets, saveLocalCategories } from '@/lib/localCatalog';
+import { loadLocalAssets, loadLocalCategories, loadLocalSettings, saveLocalAssets, saveLocalCategories, saveLocalSettings } from '@/lib/localCatalog';
 
 type EditorValues = {
   title: string;
@@ -167,12 +170,14 @@ export default function Admin() {
   const statusQuery = useGetAdminStatus({ query: { queryKey: getGetAdminStatusQueryKey(), retry: false } });
   const assetsQuery = useListAssets({}, { query: { queryKey: getListAssetsQueryKey({}), retry: false } });
   const categoriesQuery = useListCategories({ query: { queryKey: getListCategoriesQueryKey(), retry: false } });
+  const settingsQuery = useGetPublicSettings({ query: { queryKey: getGetPublicSettingsQueryKey(), retry: false } });
   const logout = useLogoutAdmin();
   const changePassword = useChangeAdminPassword();
   const create = useCreateAsset();
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
   const update = useUpdateAsset();
+  const updateSettings = useUpdateSiteSettings();
   const remove = useDeleteAsset();
   const [previewAuth, setPreviewAuth] = useState(false);
   const [previewAssets, setPreviewAssets] = useState<Asset[]>(() => loadLocalAssets() ?? SEED_ASSETS);
@@ -182,9 +187,13 @@ export default function Admin() {
   const [showPassword, setShowPassword] = useState(false);
   const [passwordValues, setPasswordValues] = useState({ current_password: '', new_password: '' });
   const [newCategory, setNewCategory] = useState('');
+  const [settingsDraft, setSettingsDraft] = useState<SiteSettings>(() => loadLocalSettings());
   const status = statusQuery.data;
   const authenticated = previewAuth || Boolean(status?.authenticated);
   const configured = status?.configured ?? false;
+  useEffect(() => {
+    if (settingsQuery.data) setSettingsDraft(settingsQuery.data);
+  }, [settingsQuery.data]);
   const assets = useMemo(() => previewAuth ? previewAssets : assetsQuery.isError || assetsQuery.data === undefined ? previewAssets : assetsQuery.data, [assetsQuery.data, assetsQuery.isError, previewAssets, previewAuth]);
   const categories = useMemo(() => [...new Set([...localCategories, ...(categoriesQuery.data ?? []).map((category) => category.name), ...assets.map((asset) => asset.category)])].sort((a, b) => a.localeCompare(b)), [assets, categoriesQuery.data, localCategories]);
   const categoryPills = useMemo<Category[]>(() => {
@@ -252,6 +261,25 @@ export default function Admin() {
       onError: (error) => { setLocalCategories((current) => current.filter((name) => name !== category.name)); saveLocalCategories(localCategories.filter((name) => name !== category.name)); setNotice(`Category “${category.name}” removed locally. ${errorText(error)}`); },
     });
   };
+  const addBanner = () => {
+    if (settingsDraft.banners.length >= 4) return;
+    const banner: SiteBanner = { id: `banner-${Date.now()}`, text: 'New item available in Discord', href: '', enabled: true };
+    setSettingsDraft((current) => ({ ...current, banners: [...current.banners, banner] }));
+  };
+  const updateBanner = (id: string, patch: Partial<SiteBanner>) => {
+    setSettingsDraft((current) => ({ ...current, banners: current.banners.map((banner) => banner.id === id ? { ...banner, ...patch } : banner) }));
+  };
+  const removeBanner = (id: string) => {
+    setSettingsDraft((current) => ({ ...current, banners: current.banners.filter((banner) => banner.id !== id) }));
+  };
+  const saveSettings = (event: FormEvent) => {
+    event.preventDefault();
+    const next = { ...settingsDraft, order_discord_link: settingsDraft.order_discord_link.trim(), banners: settingsDraft.banners.map((banner) => ({ ...banner, text: banner.text.trim(), href: banner.href.trim() })) };
+    updateSettings.mutate({ data: next }, {
+      onSuccess: (result) => { setSettingsDraft(result); saveLocalSettings(result); setNotice('Public settings saved.'); },
+      onError: (error) => { setSettingsDraft(next); saveLocalSettings(next); setNotice(`Settings saved locally. ${errorText(error)}`); },
+    });
+  };
   const submitPassword = (event: FormEvent) => {
     event.preventDefault();
     changePassword.mutate({ data: passwordValues }, {
@@ -273,6 +301,8 @@ export default function Admin() {
           {notice && <div className="mb-6 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-foreground" data-testid="status-admin-notice"><span className="flex items-center gap-2"><Check className="h-4 w-4 text-primary" />{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Dismiss notice" data-testid="button-dismiss-notice"><X className="h-4 w-4 text-muted-foreground" /></button></div>}
           <section className="grid gap-4 sm:grid-cols-3"><div className="rounded-2xl border border-border bg-card p-5"><div className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">active drops</div><div className="mt-2 font-display text-3xl font-semibold tracking-[-.05em]">{assets.length}</div></div><div className="rounded-2xl border border-border bg-card p-5"><div className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">collections</div><div className="mt-2 font-display text-3xl font-semibold tracking-[-.05em]">{new Set(assets.map((item) => item.category)).size}</div></div><div className="rounded-2xl border border-border bg-card p-5"><div className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">session</div><div className="mt-2 flex items-center gap-2 font-mono text-sm font-medium"><span className="h-2 w-2 rounded-full bg-primary animate-pulse-soft" />secured</div></div></section>
             <section className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-7"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><div className="font-mono text-[10px] uppercase tracking-[.16em] text-primary">taxonomy</div><h2 className="mt-1 font-display text-xl font-semibold tracking-[-.04em]">Collections</h2><p className="mt-1 text-xs text-muted-foreground">Add categories for future drops. Categories assigned to a drop cannot be removed until unused.</p></div><form onSubmit={addCategory} className="flex w-full gap-2 sm:max-w-sm"><input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} className="admin-input" placeholder="New category name" data-testid="input-new-category" /><button disabled={createCategory.isPending} type="submit" className="shrink-0 rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-60" data-testid="button-add-category">{createCategory.isPending ? 'Adding…' : 'Add'}</button></form></div><div className="mt-5 flex flex-wrap gap-2">{categoryPills.map((category) => <span key={category.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/50 px-3 py-1.5 text-[10px] font-bold">{category.name}{category.id > 0 && <button type="button" onClick={() => removeCategory(category)} className="rounded-full p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove ${category.name}`}><X className="h-3 w-3" /></button>}</span>)}</div></section>
+            <section className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-7"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><div className="font-mono text-[10px] uppercase tracking-[.16em] text-primary">taxonomy</div><h2 className="mt-1 font-display text-xl font-semibold tracking-[-.04em]">Collections</h2><p className="mt-1 text-xs text-muted-foreground">Add categories for future drops. Categories assigned to a drop cannot be removed until unused.</p></div><form onSubmit={addCategory} className="flex w-full gap-2 sm:max-w-sm"><input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} className="admin-input" placeholder="New category name" data-testid="input-new-category" /><button disabled={createCategory.isPending} type="submit" className="shrink-0 rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-60" data-testid="button-add-category">{createCategory.isPending ? 'Adding…' : 'Add'}</button></form></div><div className="mt-5 flex flex-wrap gap-2">{categoryPills.map((category) => <span key={category.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/50 px-3 py-1.5 text-[10px] font-bold">{category.name}{category.id > 0 && <button type="button" onClick={() => removeCategory(category)} className="rounded-full p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove ${category.name}`}><X className="h-3 w-3" /></button>}</span>)}</div></section>
+            <section className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-7"><form onSubmit={saveSettings}><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><div className="font-mono text-[10px] uppercase tracking-[.16em] text-primary">public messaging</div><h2 className="mt-1 font-display text-xl font-semibold tracking-[-.04em]">Order channel & banners</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Order requests copy the shopper’s message and open this Discord channel. Add up to four announcement bubbles for sales, codes, and new drops.</p></div><button disabled={updateSettings.isPending} type="submit" className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-60" data-testid="button-save-site-settings">{updateSettings.isPending ? 'Saving…' : 'Save settings'}</button></div><div className="mt-6"><Field label="Dedicated order Discord channel"><input value={settingsDraft.order_discord_link} onChange={(event) => setSettingsDraft((current) => ({ ...current, order_discord_link: event.target.value }))} className="admin-input" placeholder="https://discord.com/channels/..." data-testid="input-order-discord-link" /><span className="mt-2 block text-[11px] text-muted-foreground">Leave blank to use each asset’s existing Discord link.</span></Field></div><div className="mt-6 border-t border-border pt-6"><div className="flex items-center justify-between"><div><div className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">announcement bubbles · {settingsDraft.banners.length}/4</div><p className="mt-1 text-xs text-muted-foreground">Short messages work best on phones.</p></div><button type="button" disabled={settingsDraft.banners.length >= 4} onClick={addBanner} className="inline-flex items-center gap-2 rounded-xl border border-dashed border-border px-3 py-2 text-[11px] font-bold text-muted-foreground hover:border-primary/50 hover:text-primary disabled:opacity-50" data-testid="button-add-banner"><Plus className="h-3.5 w-3.5" />Add bubble</button></div><div className="mt-4 space-y-3">{settingsDraft.banners.map((banner, index) => <div key={banner.id} className="grid gap-3 rounded-xl border border-border bg-secondary/25 p-4 md:grid-cols-[1fr_1fr_auto_auto] md:items-end"><Field label={`Bubble ${index + 1}`}><input value={banner.text} onChange={(event) => updateBanner(banner.id, { text: event.target.value })} className="admin-input" placeholder="50% off this weekend" data-testid={`input-banner-text-${index}`} /></Field><Field label="Optional link"><input value={banner.href} onChange={(event) => updateBanner(banner.id, { href: event.target.value })} className="admin-input" placeholder="https://discord.com/..." data-testid={`input-banner-link-${index}`} /></Field><label className="flex h-11 items-center gap-2 rounded-xl border border-input px-3 text-xs font-bold"><input type="checkbox" checked={banner.enabled} onChange={(event) => updateBanner(banner.id, { enabled: event.target.checked })} data-testid={`checkbox-banner-enabled-${index}`} />Show</label><button type="button" onClick={() => removeBanner(banner.id)} className="flex h-11 items-center justify-center rounded-xl px-3 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove banner ${index + 1}`} data-testid={`button-remove-banner-${index}`}><Trash2 className="h-4 w-4" /></button></div>)}</div></div></form></section>
             <section className="mt-8 overflow-hidden rounded-2xl border border-border bg-card"><div className="flex items-center justify-between border-b border-border px-5 py-4"><div><h2 className="font-display text-xl font-semibold tracking-[-.04em]">All drops</h2><p className="mt-1 text-xs text-muted-foreground">Changes publish to the public archive.</p></div><span className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">{assets.length} entries</span></div><div className="divide-y divide-border">{assetsQuery.isLoading && !assetsQuery.data ? [1, 2, 3].map((item) => <div key={item} className="flex items-center gap-4 p-5"><div className="h-12 w-16 animate-pulse rounded-lg bg-secondary" /><div className="h-4 w-48 animate-pulse rounded bg-secondary" /></div>) : assets.length ? assets.map((asset) => { const prices = getAssetPrices(asset); return <div key={asset.id} className="group flex flex-col gap-4 p-4 transition-colors hover:bg-secondary/35 sm:flex-row sm:items-center sm:p-5" data-testid={`row-admin-asset-${asset.id}`}><div className="h-16 w-20 shrink-0 overflow-hidden rounded-xl"><AssetVisual asset={asset} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-display text-base font-semibold tracking-[-.03em]">{asset.title}</span><span className="rounded-full bg-primary/10 px-2 py-1 font-mono text-[9px] uppercase tracking-[.12em] text-primary">{asset.category}</span><span className="font-mono text-[10px] text-muted-foreground">by {asset.creator}</span></div><p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{asset.description}</p><div className="mt-2 flex flex-wrap gap-1">{asset.tags.map((tag) => <span key={tag} className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[9px] text-muted-foreground">#{tag}</span>)}</div></div><div className="flex items-center justify-between gap-5 sm:justify-end"><span className="font-mono text-xs font-bold">{(prices.display === 'Robux' || prices.display === 'Both') && prices.robux !== null && <span>{formatRobux(prices.robux)}</span>}{prices.display === 'Both' && prices.robux !== null && prices.usd !== null && <span className="mx-1 text-muted-foreground">·</span>}{(prices.display === 'USD' || prices.display === 'Both') && prices.usd !== null && <span>{formatUsd(prices.usd)}</span>}</span><div className="flex gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"><button type="button" onClick={() => setEditor({ asset })} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-primary" aria-label={`Edit ${asset.title}`} data-testid={`button-edit-asset-${asset.id}`}><Pencil className="h-4 w-4" /></button><button type="button" onClick={() => deleteOne(asset)} className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Delete ${asset.title}`} data-testid={`button-delete-asset-${asset.id}`}><Trash2 className="h-4 w-4" /></button></div></div></div>; }) : <div className="px-6 py-14 text-center" data-testid="empty-admin-assets"><div className="font-mono text-[10px] uppercase tracking-[.18em] text-primary">quiet archive</div><p className="mt-3 font-display text-xl font-semibold">No drops are published yet.</p><p className="mt-2 text-sm text-muted-foreground">Start the collection with a considered first entry.</p><button type="button" onClick={() => setEditor({})} className="mt-5 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground" data-testid="button-empty-new-asset">Add first drop</button></div>}</div></section>
          <section className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-7"><button type="button" onClick={() => setShowPassword(!showPassword)} className="flex w-full items-center justify-between text-left" data-testid="button-toggle-password-panel"><span className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary"><KeyRound className="h-4 w-4 text-primary" /></span><span><span className="block font-display text-lg font-semibold tracking-[-.03em]">Studio key</span><span className="mt-1 block text-xs text-muted-foreground">Change the password used for private access.</span></span></span><ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showPassword ? 'rotate-180' : ''}`} /></button>{showPassword && <form onSubmit={submitPassword} className="mt-6 grid gap-4 border-t border-border pt-6 sm:grid-cols-3"><Field label="Current password"><input required type="password" autoComplete="current-password" value={passwordValues.current_password} onChange={(event) => setPasswordValues({ ...passwordValues, current_password: event.target.value })} className="admin-input" data-testid="input-current-password" /></Field><Field label="New password"><input required minLength={8} type="password" autoComplete="new-password" value={passwordValues.new_password} onChange={(event) => setPasswordValues({ ...passwordValues, new_password: event.target.value })} className="admin-input" data-testid="input-new-password" /></Field><div className="flex items-end"><button disabled={changePassword.isPending} type="submit" className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-secondary px-4 text-xs font-bold hover:bg-primary/10 hover:text-primary disabled:opacity-60" data-testid="button-change-password">{changePassword.isPending ? 'Updating…' : <><KeyRound className="h-4 w-4" />Update key</>}</button></div></form>}</section>
         </main>

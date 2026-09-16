@@ -265,6 +265,26 @@ export const GetMarketplaceSummaryResponse = zod.object({
 
 
 /**
+ * @summary Get public marketplace settings
+ */
+
+
+export const getPublicSettingsResponseBannersMax = 4;
+
+
+
+export const GetPublicSettingsResponse = zod.object({
+  "order_discord_link": zod.string(),
+  "banners": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "text": zod.string().min(1),
+  "href": zod.string(),
+  "enabled": zod.boolean()
+})).max(getPublicSettingsResponseBannersMax)
+})
+
+
+/**
  * @summary Get admin session status
  */
 export const GetAdminStatusResponse = zod.object({
@@ -327,5 +347,41 @@ export const ChangeAdminPasswordBody = zod.object({
 })
 
 export const ChangeAdminPasswordResponse = zod.void()
+
+
+/**
+ * @summary Update public marketplace settings
+ */
+
+
+export const updateSiteSettingsBodyBannersMax = 4;
+
+
+
+export const UpdateSiteSettingsBody = zod.object({
+  "order_discord_link": zod.string(),
+  "banners": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "text": zod.string().min(1),
+  "href": zod.string(),
+  "enabled": zod.boolean()
+})).max(updateSiteSettingsBodyBannersMax)
+})
+
+
+
+export const updateSiteSettingsResponseBannersMax = 4;
+
+
+
+export const UpdateSiteSettingsResponse = zod.object({
+  "order_discord_link": zod.string(),
+  "banners": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "text": zod.string().min(1),
+  "href": zod.string(),
+  "enabled": zod.boolean()
+})).max(updateSiteSettingsResponseBannersMax)
+})
 
 

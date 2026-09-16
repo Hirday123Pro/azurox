@@ -1,27 +1,59 @@
 import { ArrowLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, Copy, Disc3, ExternalLink, ShieldCheck, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'wouter';
-import { useGetAsset, getGetAssetQueryKey, useListAssets, getListAssetsQueryKey } from '@workspace/api-client-react';
-import type { Asset } from '@workspace/api-client-react';
+import { getGetAssetQueryKey, getGetPublicSettingsQueryKey, getListAssetsQueryKey, useGetAsset, useGetPublicSettings, useListAssets } from '@workspace/api-client-react';
+import type { Asset, SiteSettings } from '@workspace/api-client-react';
 import { AssetVisual } from '@/components/AssetVisual';
 import { PageShell, SiteHeader } from '@/components/SiteChrome';
 import { findSeedAsset, SEED_ASSETS } from '@/lib/seed';
 import { formatRobux, formatUsd, getAssetPrices } from '@/lib/pricing';
+import { loadLocalAssets, loadLocalSettings } from '@/lib/localCatalog';
 
 function DetailFallback({ id }: { id: number }) {
   return <div className="mx-auto max-w-3xl px-5 py-28 text-center"><div className="font-mono text-[10px] uppercase tracking-[.2em] text-primary">drop not found</div><h1 className="mt-4 font-display text-4xl font-semibold tracking-[-.06em]">That drop moved on.</h1><p className="mt-3 text-sm text-muted-foreground">The asset with archive code {id} is not available in this collection.</p><Link href="/" className="mt-7 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-xs font-bold text-primary-foreground" data-testid="link-back-archive"><ArrowLeft className="h-4 w-4" />Back to archive</Link></div>;
+}
+
+function OrderDialog({ asset, settings, onClose }: { asset: Asset; settings: SiteSettings; onClose: () => void }) {
+  const [request, setRequest] = useState('');
+  const [contact, setContact] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const message = [`Azurox order request`, `Asset: ${asset.title}`, `Request: ${request.trim()}`, contact.trim() ? `Contact: ${contact.trim()}` : ''].filter(Boolean).join('\n');
+    try {
+      await navigator.clipboard?.writeText(message);
+    } catch {
+      // Clipboard access is optional; the channel still opens.
+    }
+    const destination = settings.order_discord_link.trim() || asset.discord_link;
+    window.open(destination, '_blank', 'noopener,noreferrer');
+    setSubmitted(true);
+  };
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07182b]/55 px-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="order-dialog-title"><form onSubmit={submit} className="w-full max-w-lg animate-dialog rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8"><div className="flex items-start justify-between gap-4"><div><div className="font-mono text-[10px] uppercase tracking-[.18em] text-primary">direct order</div><h2 id="order-dialog-title" className="mt-2 font-display text-2xl font-extrabold tracking-[-.05em]">Tell us what you need</h2></div><button type="button" onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Close order form"><X className="h-4 w-4" /></button></div><p className="mt-3 text-sm leading-6 text-muted-foreground">Write the request in your own words. We’ll copy it for you, then open the dedicated Discord order channel.</p><label className="mt-6 block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">What would you like to order?</span><textarea required minLength={5} value={request} onChange={(event) => setRequest(event.target.value)} className="admin-input min-h-[130px] resize-y" placeholder="I want this asset with..." data-testid="textarea-order-request" /></label><label className="mt-4 block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">Discord or Roblox username <span className="normal-case tracking-normal">(optional)</span></span><input value={contact} onChange={(event) => setContact(event.target.value)} className="admin-input" placeholder="your username" data-testid="input-order-contact" /></label>{submitted && <div className="mt-4 rounded-xl bg-primary/10 px-3 py-2.5 text-xs leading-5 text-primary" data-testid="status-order-sent">Your request was copied. Paste it in the Discord order channel.</div>}<button type="submit" className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-extrabold text-primary-foreground" data-testid="button-send-order">{submitted ? 'Open Discord again' : 'Send order to Discord'} <ArrowUpRight className="h-4 w-4" /></button></form></div>;
 }
 
 export default function AssetDetail() {
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
   const query = useGetAsset(id, { query: { queryKey: getGetAssetQueryKey(id), staleTime: 30_000 } });
+  const settingsQuery = useGetPublicSettings({ query: { queryKey: getGetPublicSettingsQueryKey(), staleTime: 30_000, retry: false } });
   const relatedQuery = useListAssets({}, { query: { queryKey: getListAssetsQueryKey({}), staleTime: 30_000 } });
-  const asset = query.data ?? findSeedAsset(id);
+  const [localAssets, setLocalAssets] = useState(() => loadLocalAssets());
+  const [localSettings, setLocalSettings] = useState(() => loadLocalSettings());
+  const [orderOpen, setOrderOpen] = useState(false);
+  useEffect(() => {
+    const refreshLocal = () => {
+      setLocalAssets(loadLocalAssets());
+      setLocalSettings(loadLocalSettings());
+    };
+    window.addEventListener('azurox-catalog-changed', refreshLocal);
+    return () => window.removeEventListener('azurox-catalog-changed', refreshLocal);
+  }, []);
+  const asset = query.data ?? localAssets?.find((item) => item.id === id) ?? findSeedAsset(id);
   const [selected, setSelected] = useState(0);
   const [copied, setCopied] = useState(false);
   const [claimOpen, setClaimOpen] = useState(false);
-  const related = useMemo(() => (relatedQuery.data ?? SEED_ASSETS).filter((item) => item.id !== id).slice(0, 3), [relatedQuery.data, id]);
+  const related = useMemo(() => (relatedQuery.data ?? localAssets ?? SEED_ASSETS).filter((item) => item.id !== id).slice(0, 3), [localAssets, relatedQuery.data, id]);
 
   if (query.isLoading && !asset) {
     return <PageShell><SiteHeader /><main className="mx-auto max-w-[1380px] px-5 py-12 lg:px-10"><div className="grid gap-8 lg:grid-cols-[1.15fr_.85fr]"><div className="min-h-[430px] animate-pulse rounded-3xl bg-secondary" /><div className="space-y-4 pt-5"><div className="h-3 w-20 animate-pulse rounded bg-secondary" /><div className="h-12 w-4/5 animate-pulse rounded bg-secondary" /><div className="h-4 w-full animate-pulse rounded bg-secondary" /></div></div></main></PageShell>;
@@ -59,13 +91,14 @@ export default function AssetDetail() {
             <h1 className="max-w-[680px] font-display text-[clamp(2.8rem,5vw,5.5rem)] font-semibold leading-[.9] tracking-[-.075em]">{asset.title}</h1>
             <p className="mt-7 max-w-[580px] text-[15px] leading-[1.75] text-muted-foreground">{asset.description}</p>
              <div className="mt-9 border-y border-border py-5"><div className="font-mono text-[10px] uppercase tracking-[.18em] text-muted-foreground">archive price</div><div className="mt-2 flex flex-wrap items-end gap-x-5 gap-y-2">{(prices.display === 'Robux' || prices.display === 'Both') && prices.robux !== null && <div><span className="block font-display text-4xl font-extrabold tracking-[-.06em]">{formatRobux(prices.robux)}</span><span className="mt-1 block text-xs text-muted-foreground">one-time transfer</span></div>}{(prices.display === 'USD' || prices.display === 'Both') && prices.usd !== null && <div><span className="block font-display text-4xl font-extrabold tracking-[-.06em]">{formatUsd(prices.usd)}</span><span className="mt-1 block text-xs text-muted-foreground">one-time license</span></div>}</div></div>
-             <button type="button" onClick={() => setClaimOpen(true)} className="mt-7 flex w-full items-center justify-between rounded-2xl bg-primary px-5 py-4 text-primary-foreground shadow-sm transition-all hover:-translate-y-1 hover:shadow-md" data-testid="button-claim-discord"><span className="flex items-center gap-3"><Disc3 className="h-5 w-5" /><span><span className="block text-sm font-extrabold">Claim this drop on Discord</span><span className="mt-0.5 block text-[11px] font-medium opacity-75">Manual handoff, creator to creator</span></span></span><ArrowUpRight className="h-5 w-5" /></button>
+              <div className="mt-7 grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => setOrderOpen(true)} className="flex items-center justify-between rounded-2xl bg-primary px-5 py-4 text-left text-primary-foreground shadow-sm transition-all hover:-translate-y-1 hover:shadow-md" data-testid="button-start-order"><span className="flex items-center gap-3"><Disc3 className="h-5 w-5" /><span><span className="block text-sm font-extrabold">Start direct order</span><span className="mt-0.5 block text-[11px] font-medium opacity-75">Write what you need</span></span></span><ArrowUpRight className="h-5 w-5" /></button><button type="button" onClick={() => setClaimOpen(true)} className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:border-primary/45" data-testid="button-claim-discord"><span><span className="block text-sm font-extrabold">Open asset Discord</span><span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">Ask about this drop</span></span><ArrowUpRight className="h-5 w-5 text-primary" /></button></div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-border bg-card p-4"><ShieldCheck className="h-4 w-4 text-primary" /><div className="mt-3 text-xs font-bold">Curated files</div><div className="mt-1 text-[11px] leading-5 text-muted-foreground">Every drop is reviewed before it enters the archive.</div></div><div className="rounded-xl border border-border bg-card p-4"><ExternalLink className="h-4 w-4 text-primary" /><div className="mt-3 text-xs font-bold">Clear handoff</div><div className="mt-1 text-[11px] leading-5 text-muted-foreground">Questions, payment, and delivery happen in Discord.</div></div></div>
           </div>
         </div>
         <section className="mt-24 border-t border-border pt-9"><div className="mb-6 flex items-end justify-between"><div><div className="font-mono text-[10px] uppercase tracking-[.2em] text-primary">keep exploring</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">From the same signal</h2></div><Link href="/" className="hidden items-center gap-2 text-xs font-bold text-muted-foreground hover:text-primary sm:flex" data-testid="link-more-archive">View archive <ArrowUpRight className="h-4 w-4" /></Link></div><div className="grid gap-5 md:grid-cols-3">{related.map((item, index) => <Link href={`/assets/${item.id}`} key={item.id} className="group overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-1 hover:border-primary/35 hover:shadow-md" data-testid={`card-related-${item.id}`}><AssetVisual asset={item} /><div className="flex items-center justify-between p-4"><span className="font-display text-base font-semibold tracking-[-.03em] group-hover:text-primary">{item.title}</span><ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary" /></div></Link>)}</div></section>
        </main>
-       {claimOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07182b]/55 px-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="claim-dialog-title"><div className="w-full max-w-md animate-dialog rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8"><div className="flex items-start justify-between gap-4"><div><div className="font-mono text-[10px] uppercase tracking-[.18em] text-primary">discord handoff</div><h2 id="claim-dialog-title" className="mt-2 font-display text-2xl font-extrabold tracking-[-.05em]">Ready to claim?</h2></div><button type="button" onClick={() => setClaimOpen(false)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Close claim instructions"><X className="h-4 w-4" /></button></div><p className="mt-3 text-sm leading-6 text-muted-foreground">This marketplace uses manual fulfillment so you can ask questions before anything changes hands.</p><ol className="mt-6 space-y-3 text-sm"><li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] font-bold text-primary">01</span><span>Open the Azurox Discord server from the button below.</span></li><li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] font-bold text-primary">02</span><span>Send the drop name: <strong>{asset.title}</strong>.</span></li><li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] font-bold text-primary">03</span><span>Confirm the price, payment, and delivery details with the Azurox team.</span></li></ol><a href={asset.discord_link} target="_blank" rel="noreferrer" onClick={() => setClaimOpen(false)} className="mt-7 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-extrabold text-primary-foreground" data-testid="link-confirm-discord">Continue to Discord <ArrowUpRight className="h-4 w-4" /></a></div></div>}
+        {claimOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07182b]/55 px-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="claim-dialog-title"><div className="w-full max-w-md animate-dialog rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8"><div className="flex items-start justify-between gap-4"><div><div className="font-mono text-[10px] uppercase tracking-[.18em] text-primary">discord handoff</div><h2 id="claim-dialog-title" className="mt-2 font-display text-2xl font-extrabold tracking-[-.05em]">Ready to claim?</h2></div><button type="button" onClick={() => setClaimOpen(false)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Close claim instructions"><X className="h-4 w-4" /></button></div><p className="mt-3 text-sm leading-6 text-muted-foreground">This marketplace uses manual fulfillment so you can ask questions before anything changes hands.</p><ol className="mt-6 space-y-3 text-sm"><li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] font-bold text-primary">01</span><span>Open the asset’s Discord channel from the button below.</span></li><li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] font-bold text-primary">02</span><span>Send the drop name: <strong>{asset.title}</strong>.</span></li><li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] font-bold text-primary">03</span><span>Confirm the price, payment, and delivery details with the Azurox team.</span></li></ol><a href={asset.discord_link} target="_blank" rel="noreferrer" onClick={() => setClaimOpen(false)} className="mt-7 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-extrabold text-primary-foreground" data-testid="link-confirm-discord">Continue to Discord <ArrowUpRight className="h-4 w-4" /></a></div></div>}
+        {orderOpen && <OrderDialog asset={asset} settings={settingsQuery.data ?? localSettings} onClose={() => setOrderOpen(false)} />}
     </PageShell>
   );
 }

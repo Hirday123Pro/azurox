@@ -26,4 +26,7 @@ export * from './listAssetsParams';
 export * from './listAssetsSort';
 export * from './marketplaceSummary';
 export * from './notFoundResponse';
+export * from './siteBanner';
+export * from './siteSettings';
+export * from './siteSettingsInput';
 export * from './unauthorizedResponse';

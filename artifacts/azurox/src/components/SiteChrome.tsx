@@ -1,7 +1,8 @@
 import { ArrowUpRight, Command, LoaderCircle, Menu, Moon, Pencil, ShieldCheck, Sun, X } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useEffect, useState, type ReactNode } from 'react';
-import { getGetAdminStatusQueryKey, useGetAdminStatus, useLoginAdmin, useSetupAdmin } from '@workspace/api-client-react';
+import { getGetAdminStatusQueryKey, getGetPublicSettingsQueryKey, useGetAdminStatus, useGetPublicSettings, useLoginAdmin, useSetupAdmin } from '@workspace/api-client-react';
+import { loadLocalSettings } from '@/lib/localCatalog';
 
 export function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
@@ -21,6 +22,7 @@ export function SiteHeader() {
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [unlockMessage, setUnlockMessage] = useState('');
+  const [localSettings, setLocalSettings] = useState(() => loadLocalSettings());
   const [dark, setDark] = useState(() => {
     try {
       return window.localStorage.getItem('azurox-theme') === 'dark';
@@ -33,6 +35,7 @@ export function SiteHeader() {
     { label: 'Discord', href: 'https://discord.gg/azurox', external: true },
   ];
   const statusQuery = useGetAdminStatus({ query: { queryKey: getGetAdminStatusQueryKey(), enabled: unlockOpen, retry: false } });
+  const settingsQuery = useGetPublicSettings({ query: { queryKey: getGetPublicSettingsQueryKey(), staleTime: 30_000, retry: false } });
   const login = useLoginAdmin();
   const setup = useSetupAdmin();
   useEffect(() => {
@@ -43,6 +46,13 @@ export function SiteHeader() {
       // Theme persistence is optional when storage is unavailable.
     }
   }, [dark]);
+  useEffect(() => {
+    const refreshSettings = () => setLocalSettings(loadLocalSettings());
+    window.addEventListener('azurox-catalog-changed', refreshSettings);
+    return () => window.removeEventListener('azurox-catalog-changed', refreshSettings);
+  }, []);
+  const settings = settingsQuery.data ?? localSettings;
+  const banners = settings.banners.filter((banner) => banner.enabled && banner.text.trim()).slice(0, 4);
   const themeToggle = (
     <button
       type="button"
@@ -97,6 +107,7 @@ export function SiteHeader() {
           <Link key={item.label} href={item.href} className="block border-b border-border py-3 text-sm font-bold" onClick={() => setOpen(false)} data-testid={`link-mobile-${item.label.toLowerCase()}`}>{item.label}</Link>
         ))}
       </div>}
+      {banners.length > 0 && <div className="border-t border-border/70 bg-secondary/40 px-5 py-2.5"><div className="mx-auto flex max-w-[1380px] gap-2 overflow-x-auto lg:px-5">{banners.map((banner) => banner.href ? <a key={banner.id} href={banner.href} target="_blank" rel="noreferrer" className="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1.5 text-[11px] font-bold text-foreground transition-colors hover:border-primary hover:text-primary">{banner.text}<ArrowUpRight className="ml-1 inline-block h-3 w-3" /></a> : <span key={banner.id} className="shrink-0 rounded-full border border-border bg-card px-3.5 py-1.5 text-[11px] font-bold text-muted-foreground">{banner.text}</span>)}</div></div>}
       <button
         type="button"
         onClick={() => { setUnlockMessage(''); setUnlockOpen(true); }}
