@@ -1,0 +1,95 @@
+name: Deploy Azurox to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      base_path:
+        description: "Optional public base path, such as /azurox/. Leave blank to derive it from the repository."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Determine Pages base path
+        id: pages-path
+        env:
+          REQUESTED_BASE_PATH: ${{ inputs.base_path }}
+        shell: bash
+        run: |
+          if [[ -n "${REQUESTED_BASE_PATH}" ]]; then
+            base_path="${REQUESTED_BASE_PATH}"
+          else
+            repository_name="${GITHUB_REPOSITORY#*/}"
+            if [[ "${repository_name}" == *.github.io ]]; then
+              base_path="/"
+            else
+              base_path="/${repository_name}/"
+            fi
+          fi
+
+          if [[ "${base_path}" != "/" ]]; then
+            base_path="/${base_path#/}"
+            base_path="${base_path%/}/"
+          fi
+
+          echo "Using BASE_PATH=${base_path}"
+          echo "base_path=${base_path}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build Azurox
+        env:
+          PORT: "4173"
+          BASE_PATH: ${{ steps.pages-path.outputs.base_path }}
+        run: pnpm --filter @workspace/azurox run build
+
+      - name: Add GitHub Pages SPA fallback
+        run: |
+          cp artifacts/azurox/dist/public/index.html artifacts/azurox/dist/public/404.html
+          touch artifacts/azurox/dist/public/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: artifacts/azurox/dist/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
