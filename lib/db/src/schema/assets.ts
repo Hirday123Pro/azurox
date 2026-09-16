@@ -6,6 +6,7 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -18,6 +19,8 @@ export const assetsTable = pgTable("assets", {
   robuxPrice: doublePrecision("robux_price"),
   dollarPrice: doublePrecision("dollar_price"),
   priceDisplay: text("price_display").notNull().default("USD"),
+  creatorName: text("creator_name").notNull().default("Azurox Studio"),
+  tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
   category: text("category").notNull(),
   imageUrls: text("image_urls").array().notNull(),
   discordLink: text("discord_link").notNull(),

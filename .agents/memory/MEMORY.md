@@ -1,2 +1,3 @@
 - [OpenAPI Zod compatibility](codegen-zod-compatibility.md) — keep generated validation helpers aligned with the workspace Zod runtime.
 - [Asset pricing compatibility](pricing-compatibility.md) — preserve the legacy primary price while adding optional Robux/USD display modes.
+- [Static publishing boundary](static-publishing.md) — GitHub Pages can use browser-local catalog fallback, but shared persistence and protected admin require the API deployment.

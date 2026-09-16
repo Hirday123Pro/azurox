@@ -10,6 +10,8 @@ export type ListAssetsSort = typeof ListAssetsSort[keyof typeof ListAssetsSort];
 
 
 export const ListAssetsSort = {
+  a_z: 'a_z',
+  z_a: 'z_a',
   newest: 'newest',
   oldest: 'oldest',
   price_low: 'price_low',

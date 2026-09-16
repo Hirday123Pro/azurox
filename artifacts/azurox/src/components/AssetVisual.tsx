@@ -9,7 +9,7 @@ const visualMap = {
 } as const;
 
 export function AssetVisual({ asset, large = false }: { asset: Asset; large?: boolean }) {
-  const visual = visualMap[asset.category];
+  const visual = visualMap[asset.category as keyof typeof visualMap] ?? visualMap.UI;
   const Icon = visual.icon;
   const image = asset.image_urls?.[0];
 

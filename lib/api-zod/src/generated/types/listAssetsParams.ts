@@ -10,5 +10,12 @@ import type { ListAssetsSort } from './listAssetsSort';
 export type ListAssetsParams = {
 search?: string;
 category?: string;
+creator?: string;
+/**
+ * Comma-separated tags; an asset must contain every selected tag.
+ */
+tags?: string;
+min_price?: string;
+max_price?: string;
 sort?: ListAssetsSort;
 };

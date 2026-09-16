@@ -44,12 +44,33 @@ paths:
           required: false
           schema:
             type: string
+        - name: creator
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tags
+          in: query
+          required: false
+          description: Comma-separated tags; an asset must contain every selected tag.
+          schema:
+            type: string
+        - name: min_price
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: max_price
+          in: query
+          required: false
+          schema:
+            type: string
         - name: sort
           in: query
           required: false
           schema:
             type: string
-            enum: [newest, oldest, price_low, price_high]
+            enum: [a_z, z_a, newest, oldest, price_low, price_high]
             default: newest
       responses:
         "200":
@@ -79,6 +100,57 @@ paths:
                 $ref: "#/components/schemas/Asset"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [assets]
+      summary: List marketplace categories
+      responses:
+        "200":
+          description: Marketplace categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [admin]
+      summary: Add a marketplace category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Category already exists
+  /categories/{id}:
+    delete:
+      operationId: deleteCategory
+      tags: [admin]
+      summary: Remove an unused marketplace category
+      parameters:
+        - $ref: "#/components/parameters/CategoryId"
+      responses:
+        "204":
+          description: Category deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Category is still assigned to assets
   /assets/{id}:
     get:
       operationId: getAsset
@@ -227,6 +299,12 @@ components:
       required: true
       schema:
         type: number
+    CategoryId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: number
   responses:
     Unauthorized:
       description: Authentication required
@@ -274,9 +352,14 @@ components:
         price_display:
           type: string
           enum: [Robux, USD, Both]
+        creator:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
         category:
           type: string
-          enum: [UI, Scripts, "3D Models", Maps]
         image_urls:
           type: array
           items:
@@ -298,6 +381,8 @@ components:
         - robux_price
         - dollar_price
         - price_display
+        - creator
+        - tags
         - category
         - image_urls
         - discord_link
@@ -330,9 +415,16 @@ components:
         price_display:
           type: string
           enum: [Robux, USD, Both]
+        creator:
+          type: string
+          minLength: 1
+        tags:
+          type: array
+          items:
+            type: string
         category:
           type: string
-          enum: [UI, Scripts, "3D Models", Maps]
+          minLength: 1
         image_urls:
           type: array
           items:
@@ -346,6 +438,8 @@ components:
         - price
         - currency
         - price_display
+        - creator
+        - tags
         - category
         - image_urls
         - discord_link
@@ -376,9 +470,16 @@ components:
         price_display:
           type: string
           enum: [Robux, USD, Both]
+        creator:
+          type: string
+          minLength: 1
+        tags:
+          type: array
+          items:
+            type: string
         category:
           type: string
-          enum: [UI, Scripts, "3D Models", Maps]
+          minLength: 1
         image_urls:
           type: array
           items:
@@ -400,6 +501,28 @@ components:
         - asset_count
         - category_count
         - newest_asset
+    Category:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - created_at
+    CategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+      required:
+        - name
     AdminStatus:
       type: object
       properties:

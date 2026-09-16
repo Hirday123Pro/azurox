@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { asc, desc, eq } from "drizzle-orm";
-import { db, assetsTable } from "@workspace/db";
+import { db, assetsTable, categoriesTable } from "@workspace/db";
 import {
   CreateAssetBody,
   CreateAssetResponse,
@@ -28,6 +28,8 @@ function serializeAsset(asset: typeof assetsTable.$inferSelect) {
     robux_price: asset.robuxPrice ?? (asset.currency === "Robux" ? asset.price : null),
     dollar_price: asset.dollarPrice ?? (asset.currency === "USD" ? asset.price : null),
     price_display: asset.priceDisplay ?? asset.currency,
+    creator: asset.creatorName,
+    tags: asset.tags,
     category: asset.category,
     image_urls: asset.imageUrls,
     discord_link: asset.discordLink,
@@ -43,9 +45,16 @@ router.get("/assets", async (req, res): Promise<void> => {
     return;
   }
 
-  const { search, category, sort } = query.data;
+  const { search, category, creator, tags, min_price, max_price, sort } = query.data;
+  const minPrice = min_price ? Number(min_price) : undefined;
+  const maxPrice = max_price ? Number(max_price) : undefined;
+  const selectedTags = tags?.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean) ?? [];
   const orderBy =
-    sort === "oldest"
+    sort === "a_z"
+      ? asc(assetsTable.title)
+      : sort === "z_a"
+        ? desc(assetsTable.title)
+        : sort === "oldest"
       ? asc(assetsTable.createdAt)
       : sort === "price_low"
         ? asc(assetsTable.price)
@@ -57,9 +66,13 @@ router.get("/assets", async (req, res): Promise<void> => {
   const normalizedSearch = search?.trim().toLowerCase();
   const filtered = rows.filter((asset) => {
     const matchesCategory = !category || asset.category === category;
-    const haystack = `${asset.title} ${asset.description} ${asset.category}`.toLowerCase();
+    const matchesCreator = !creator || asset.creatorName.toLowerCase() === creator.toLowerCase();
+    const matchesTags = selectedTags.every((tag) => asset.tags.some((assetTag) => assetTag.toLowerCase() === tag));
+    const matchesMinPrice = minPrice === undefined || (!Number.isNaN(minPrice) && asset.price >= minPrice);
+    const matchesMaxPrice = maxPrice === undefined || (!Number.isNaN(maxPrice) && asset.price <= maxPrice);
+    const haystack = `${asset.title} ${asset.description} ${asset.category} ${asset.creatorName} ${asset.tags.join(" ")}`.toLowerCase();
     const matchesSearch = !normalizedSearch || haystack.includes(normalizedSearch);
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesCreator && matchesTags && matchesMinPrice && matchesMaxPrice && matchesSearch;
   });
 
   res.json(ListAssetsResponse.parse(filtered.map(serializeAsset)));
@@ -82,6 +95,8 @@ router.post("/assets", requireAdmin, async (req, res): Promise<void> => {
       robuxPrice: parsed.data.robux_price,
       dollarPrice: parsed.data.dollar_price,
       priceDisplay: parsed.data.price_display,
+      creatorName: parsed.data.creator,
+      tags: parsed.data.tags,
       category: parsed.data.category,
       imageUrls: parsed.data.image_urls,
       discordLink: parsed.data.discord_link,
@@ -132,6 +147,8 @@ router.patch("/assets/:id", requireAdmin, async (req, res): Promise<void> => {
       ...(body.data.robux_price !== undefined ? { robuxPrice: body.data.robux_price } : {}),
       ...(body.data.dollar_price !== undefined ? { dollarPrice: body.data.dollar_price } : {}),
       ...(body.data.price_display !== undefined ? { priceDisplay: body.data.price_display } : {}),
+      ...(body.data.creator !== undefined ? { creatorName: body.data.creator } : {}),
+      ...(body.data.tags !== undefined ? { tags: body.data.tags } : {}),
       ...(body.data.category !== undefined ? { category: body.data.category } : {}),
       ...(body.data.image_urls !== undefined ? { imageUrls: body.data.image_urls } : {}),
       ...(body.data.discord_link !== undefined ? { discordLink: body.data.discord_link } : {}),
@@ -168,8 +185,11 @@ router.delete("/assets/:id", requireAdmin, async (req, res): Promise<void> => {
 });
 
 router.get("/marketplace/summary", async (_req, res): Promise<void> => {
-  const rows = await db.select().from(assetsTable);
-  const categories = new Set(rows.map((asset) => asset.category));
+  const [rows, storedCategories] = await Promise.all([
+    db.select().from(assetsTable),
+    db.select({ name: categoriesTable.name }).from(categoriesTable),
+  ]);
+  const categories = new Set([...rows.map((asset) => asset.category), ...storedCategories.map((category) => category.name)]);
   const newest = rows.reduce<Date | null>(
     (latest, asset) => (!latest || asset.createdAt > latest ? asset.createdAt : latest),
     null,

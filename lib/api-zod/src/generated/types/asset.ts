@@ -5,7 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { AssetCategory } from './assetCategory';
 import type { AssetCurrency } from './assetCurrency';
 import type { AssetPriceDisplay } from './assetPriceDisplay';
 
@@ -26,7 +25,9 @@ export interface Asset {
      */
   dollar_price: number | null;
   price_display: AssetPriceDisplay;
-  category: AssetCategory;
+  creator: string;
+  tags: string[];
+  category: string;
   image_urls: string[];
   discord_link: string;
   created_at: Date;

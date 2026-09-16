@@ -5,7 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { AssetInputCategory } from './assetInputCategory';
 import type { AssetInputCurrency } from './assetInputCurrency';
 import type { AssetInputPriceDisplay } from './assetInputPriceDisplay';
 
@@ -28,7 +27,11 @@ export interface AssetInput {
      */
   dollar_price?: number | null;
   price_display: AssetInputPriceDisplay;
-  category: AssetInputCategory;
+  /** @minLength 1 */
+  creator: string;
+  tags: string[];
+  /** @minLength 1 */
+  category: string;
   /** @minItems 1 */
   image_urls: string[];
   discord_link: string;

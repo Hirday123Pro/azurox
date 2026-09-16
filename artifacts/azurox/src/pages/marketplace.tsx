@@ -1,14 +1,13 @@
 import { Search, SlidersHorizontal, ArrowDownUp, ChevronDown, Sparkles, Layers3, RefreshCw, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
-import { useListAssets, useGetMarketplaceSummary, getListAssetsQueryKey, getGetMarketplaceSummaryQueryKey } from '@workspace/api-client-react';
-import type { Asset, AssetCategory } from '@workspace/api-client-react';
+import { useListAssets, useListCategories, useGetMarketplaceSummary, getListAssetsQueryKey, getListCategoriesQueryKey, getGetMarketplaceSummaryQueryKey } from '@workspace/api-client-react';
+import type { Asset, ListAssetsSort } from '@workspace/api-client-react';
 import { AssetVisual } from '@/components/AssetVisual';
 import { PageShell, SiteHeader } from '@/components/SiteChrome';
 import { SEED_ASSETS, categoryMeta } from '@/lib/seed';
 import { formatRobux, formatUsd, getAssetPrices } from '@/lib/pricing';
-
-const categories: Array<'All' | AssetCategory> = ['All', 'UI', 'Scripts', '3D Models', 'Maps'];
+import { loadLocalAssets, loadLocalCategories } from '@/lib/localCatalog';
 
 function AssetCard({ asset, index }: { asset: Asset; index: number }) {
   const prices = getAssetPrices(asset);
@@ -41,24 +40,49 @@ function AssetSkeleton() {
 
 export default function Marketplace() {
   const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<'All' | AssetCategory>('All');
-  const [sort, setSort] = useState<'newest' | 'oldest' | 'price_low' | 'price_high'>('newest');
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [creator, setCreator] = useState('All');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [sort, setSort] = useState<ListAssetsSort>('newest');
   const [sortOpen, setSortOpen] = useState(false);
-  const params = useMemo(() => ({ search: query || undefined, category: activeCategory === 'All' ? undefined : activeCategory, sort }), [query, activeCategory, sort]);
+  const [localAssets, setLocalAssets] = useState<Asset[] | null>(() => loadLocalAssets());
+  const [localCategories, setLocalCategories] = useState<string[]>(() => loadLocalCategories());
+  useEffect(() => {
+    const refreshLocalCatalog = () => {
+      setLocalAssets(loadLocalAssets());
+      setLocalCategories(loadLocalCategories());
+    };
+    window.addEventListener('azurox-catalog-changed', refreshLocalCatalog);
+    return () => window.removeEventListener('azurox-catalog-changed', refreshLocalCatalog);
+  }, []);
+  const categoriesQuery = useListCategories({ query: { queryKey: getListCategoriesQueryKey(), staleTime: 30_000 } });
+  const params = useMemo(() => ({ search: query || undefined, category: activeCategory === 'All' ? undefined : activeCategory, creator: creator === 'All' ? undefined : creator, tags: selectedTags.length ? selectedTags.join(',') : undefined, min_price: minPrice || undefined, max_price: maxPrice || undefined, sort }), [query, activeCategory, creator, selectedTags, minPrice, maxPrice, sort]);
   const assetsQuery = useListAssets(params, { query: { queryKey: getListAssetsQueryKey(params), staleTime: 30_000 } });
+  const allAssetsQuery = useListAssets({ sort: 'newest' }, { query: { queryKey: getListAssetsQueryKey({ sort: 'newest' }), staleTime: 30_000 } });
   const summaryQuery = useGetMarketplaceSummary({ query: { queryKey: getGetMarketplaceSummaryQueryKey(), staleTime: 30_000 } });
   const apiAssets = assetsQuery.data;
   const seeded = useMemo(() => {
     const normalized = query.toLowerCase().trim();
-    let result = SEED_ASSETS.filter((asset) => activeCategory === 'All' || asset.category === activeCategory);
-    if (normalized) result = result.filter((asset) => `${asset.title} ${asset.description} ${asset.category}`.toLowerCase().includes(normalized));
-    return [...result].sort((a, b) => sort === 'oldest' ? a.created_at.localeCompare(b.created_at) : sort === 'price_low' ? a.price - b.price : sort === 'price_high' ? b.price - a.price : b.created_at.localeCompare(a.created_at));
-  }, [activeCategory, query, sort]);
+    let result = SEED_ASSETS.filter((asset) => activeCategory === 'All' || asset.category === activeCategory)
+      .filter((asset) => creator === 'All' || asset.creator === creator)
+      .filter((asset) => selectedTags.every((tag) => asset.tags.includes(tag)))
+      .filter((asset) => !minPrice || asset.price >= Number(minPrice))
+      .filter((asset) => !maxPrice || asset.price <= Number(maxPrice));
+    if (normalized) result = result.filter((asset) => `${asset.title} ${asset.description} ${asset.category} ${asset.creator} ${asset.tags.join(' ')}`.toLowerCase().includes(normalized));
+    return [...result].sort((a, b) => sort === 'a_z' ? a.title.localeCompare(b.title) : sort === 'z_a' ? b.title.localeCompare(a.title) : sort === 'oldest' ? a.created_at.localeCompare(b.created_at) : sort === 'price_low' ? a.price - b.price : sort === 'price_high' ? b.price - a.price : b.created_at.localeCompare(a.created_at));
+  }, [activeCategory, creator, maxPrice, minPrice, query, selectedTags, sort]);
   const assets = apiAssets && apiAssets.length > 0 ? apiAssets : seeded;
   const summary = summaryQuery.data;
   const count = summary?.asset_count ?? 24;
   const newest = summary?.newest_asset ? new Date(summary.newest_asset) : new Date(SEED_ASSETS[0].created_at);
-  const sortLabels = { newest: 'Newest first', oldest: 'Oldest first', price_low: 'Price: low to high', price_high: 'Price: high to low' };
+  const availableAssets = allAssetsQuery.data?.length ? allAssetsQuery.data : localAssets?.length ? localAssets : SEED_ASSETS;
+  const categories = ['All', ...new Set([...localCategories, ...(categoriesQuery.data ?? []).map((item) => item.name)])];
+  const creators = ['All', ...new Set(availableAssets.map((asset) => asset.creator))];
+  const tags = [...new Set(availableAssets.flatMap((asset) => asset.tags))].sort();
+  const sortLabels: Record<ListAssetsSort, string> = { a_z: 'A–Z', z_a: 'Z–A', newest: 'Latest first', oldest: 'Oldest first', price_low: 'Price: low to high', price_high: 'Price: high to low' };
+  const categoryLabel = (category: string) => categoryMeta[category as keyof typeof categoryMeta]?.label ?? category;
 
   return (
     <PageShell>
@@ -104,12 +128,19 @@ export default function Marketplace() {
           </div>
           <div className="mb-9 flex items-center gap-2 overflow-x-auto pb-1" data-testid="category-filters">
             <SlidersHorizontal className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
-            {categories.map((category) => <button type="button" key={category} onClick={() => setActiveCategory(category)} className={`shrink-0 rounded-full border px-4 py-2 text-[11px] font-bold transition-all ${activeCategory === category ? 'border-primary bg-primary text-primary-foreground shadow-sm' : 'border-border bg-card text-muted-foreground hover:border-primary/45 hover:text-foreground'}`} data-testid={`button-category-${category.toLowerCase().replace(' ', '-')}`}>{categoryMeta[category].label}</button>)}
+            {categories.map((category) => <button type="button" key={category} onClick={() => setActiveCategory(category)} className={`shrink-0 rounded-full border px-4 py-2 text-[11px] font-bold transition-all ${activeCategory === category ? 'border-primary bg-primary text-primary-foreground shadow-sm' : 'border-border bg-card text-muted-foreground hover:border-primary/45 hover:text-foreground'}`} data-testid={`button-category-${category.toLowerCase().replaceAll(' ', '-')}`}>{categoryLabel(category)}</button>)}
             <span className="ml-auto hidden items-center gap-2 font-mono text-[10px] uppercase tracking-[.12em] text-muted-foreground sm:flex"><Layers3 className="h-3.5 w-3.5" />{assets.length} showing</span>
+          </div>
+          <div className="mb-8 grid gap-3 rounded-2xl border border-border bg-secondary/30 p-4 md:grid-cols-4" data-testid="asset-filter-panel">
+            <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Creator</span><select value={creator} onChange={(event) => setCreator(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-card px-3 text-xs font-semibold"><option>All</option>{creators.filter((item) => item !== 'All').map((item) => <option key={item}>{item}</option>)}</select></label>
+            <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Category</span><select value={activeCategory} onChange={(event) => setActiveCategory(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-card px-3 text-xs font-semibold">{categories.map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}</select></label>
+            <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Minimum price</span><input value={minPrice} onChange={(event) => setMinPrice(event.target.value)} type="number" min="0" placeholder="No minimum" className="h-10 w-full rounded-lg border border-input bg-card px-3 text-xs font-semibold" /></label>
+            <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Maximum price</span><input value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)} type="number" min="0" placeholder="No maximum" className="h-10 w-full rounded-lg border border-input bg-card px-3 text-xs font-semibold" /></label>
+            <div className="md:col-span-4"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Tags · choose any combination</span><div className="flex flex-wrap gap-2">{tags.map((tag) => <button type="button" key={tag} onClick={() => setSelectedTags((current) => current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag])} className={`rounded-full border px-3 py-1.5 text-[10px] font-bold transition-colors ${selectedTags.includes(tag) ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:border-primary/45 hover:text-foreground'}`}>{tag}</button>)}</div></div>
           </div>
           {assetsQuery.isError && <div className="mb-6 flex items-center gap-3 rounded-xl border border-[#e8c989] bg-[#fff7dc] px-4 py-3 text-xs text-[#80632a]" data-testid="status-api-fallback"><RefreshCw className="h-4 w-4" />Archive preview is active while the live library reconnects.</div>}
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {assetsQuery.isLoading && !apiAssets ? [1, 2, 3].map((item) => <AssetSkeleton key={item} />) : assets.length ? assets.map((asset, index) => <AssetCard key={asset.id} asset={asset} index={index} />) : <div className="col-span-full rounded-2xl border border-dashed border-border bg-card px-8 py-16 text-center" data-testid="empty-assets"><div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary"><Search className="h-5 w-5 text-muted-foreground" /></div><h3 className="font-display text-xl font-semibold">Nothing in this pocket of the archive</h3><p className="mt-2 text-sm text-muted-foreground">Try a wider search or another collection.</p><button type="button" onClick={() => { setQuery(''); setActiveCategory('All'); }} className="mt-5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground" data-testid="button-reset-filters">Reset filters</button></div>}
+           {assetsQuery.isLoading && !apiAssets ? [1, 2, 3].map((item) => <AssetSkeleton key={item} />) : assets.length ? assets.map((asset, index) => <AssetCard key={asset.id} asset={asset} index={index} />) : <div className="col-span-full rounded-2xl border border-dashed border-border bg-card px-8 py-16 text-center" data-testid="empty-assets"><div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary"><Search className="h-5 w-5 text-muted-foreground" /></div><h3 className="font-display text-xl font-semibold">Nothing in this pocket of the archive</h3><p className="mt-2 text-sm text-muted-foreground">Try a wider search or another collection.</p><button type="button" onClick={() => { setQuery(''); setActiveCategory('All'); setCreator('All'); setSelectedTags([]); setMinPrice(''); setMaxPrice(''); }} className="mt-5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground" data-testid="button-reset-filters">Reset filters</button></div>}
           </div>
         </section>
       </main>

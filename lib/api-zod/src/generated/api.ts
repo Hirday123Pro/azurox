@@ -25,7 +25,11 @@ export const listAssetsQuerySortDefault = `newest`;
 export const ListAssetsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "category": zod.coerce.string().optional(),
-  "sort": zod.enum(['newest', 'oldest', 'price_low', 'price_high']).default(listAssetsQuerySortDefault)
+  "creator": zod.coerce.string().optional(),
+  "tags": zod.coerce.string().optional().describe('Comma-separated tags; an asset must contain every selected tag.'),
+  "min_price": zod.coerce.string().optional(),
+  "max_price": zod.coerce.string().optional(),
+  "sort": zod.enum(['a_z', 'z_a', 'newest', 'oldest', 'price_low', 'price_high']).default(listAssetsQuerySortDefault)
 })
 
 export const listAssetsResponseRobuxPriceMin = 0;
@@ -43,7 +47,9 @@ export const ListAssetsResponseItem = zod.object({
   "robux_price": zod.number().min(listAssetsResponseRobuxPriceMin).nullable(),
   "dollar_price": zod.number().min(listAssetsResponseDollarPriceMin).nullable(),
   "price_display": zod.enum(['Robux', 'USD', 'Both']),
-  "category": zod.enum(['UI', 'Scripts', '3D Models', 'Maps']),
+  "creator": zod.string(),
+  "tags": zod.array(zod.string()),
+  "category": zod.string(),
   "image_urls": zod.array(zod.string()),
   "discord_link": zod.string(),
   "created_at": zod.coerce.date(),
@@ -66,6 +72,8 @@ export const createAssetBodyDollarPriceMin = 0;
 
 
 
+
+
 export const CreateAssetBody = zod.object({
   "title": zod.string().min(1),
   "description": zod.string().min(1),
@@ -74,7 +82,9 @@ export const CreateAssetBody = zod.object({
   "robux_price": zod.number().min(createAssetBodyRobuxPriceMin).nullish(),
   "dollar_price": zod.number().min(createAssetBodyDollarPriceMin).nullish(),
   "price_display": zod.enum(['Robux', 'USD', 'Both']),
-  "category": zod.enum(['UI', 'Scripts', '3D Models', 'Maps']),
+  "creator": zod.string().min(1),
+  "tags": zod.array(zod.string()),
+  "category": zod.string().min(1),
   "image_urls": zod.array(zod.string()).min(1),
   "discord_link": zod.string()
 })
@@ -94,12 +104,52 @@ export const CreateAssetResponse = zod.object({
   "robux_price": zod.number().min(createAssetResponseRobuxPriceMin).nullable(),
   "dollar_price": zod.number().min(createAssetResponseDollarPriceMin).nullable(),
   "price_display": zod.enum(['Robux', 'USD', 'Both']),
-  "category": zod.enum(['UI', 'Scripts', '3D Models', 'Maps']),
+  "creator": zod.string(),
+  "tags": zod.array(zod.string()),
+  "category": zod.string(),
   "image_urls": zod.array(zod.string()),
   "discord_link": zod.string(),
   "created_at": zod.coerce.date(),
   "updated_at": zod.coerce.date()
 })
+
+
+/**
+ * @summary List marketplace categories
+ */
+export const ListCategoriesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "created_at": zod.coerce.date()
+})
+export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
+
+
+/**
+ * @summary Add a marketplace category
+ */
+
+
+
+export const CreateCategoryBody = zod.object({
+  "name": zod.string().min(1)
+})
+
+export const CreateCategoryResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove an unused marketplace category
+ */
+export const DeleteCategoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCategoryResponse = zod.void()
 
 
 /**
@@ -124,7 +174,9 @@ export const GetAssetResponse = zod.object({
   "robux_price": zod.number().min(getAssetResponseRobuxPriceMin).nullable(),
   "dollar_price": zod.number().min(getAssetResponseDollarPriceMin).nullable(),
   "price_display": zod.enum(['Robux', 'USD', 'Both']),
-  "category": zod.enum(['UI', 'Scripts', '3D Models', 'Maps']),
+  "creator": zod.string(),
+  "tags": zod.array(zod.string()),
+  "category": zod.string(),
   "image_urls": zod.array(zod.string()),
   "discord_link": zod.string(),
   "created_at": zod.coerce.date(),
@@ -150,6 +202,8 @@ export const updateAssetBodyDollarPriceMin = 0;
 
 
 
+
+
 export const UpdateAssetBody = zod.object({
   "title": zod.string().min(1).optional(),
   "description": zod.string().min(1).optional(),
@@ -158,7 +212,9 @@ export const UpdateAssetBody = zod.object({
   "robux_price": zod.number().min(updateAssetBodyRobuxPriceMin).nullish(),
   "dollar_price": zod.number().min(updateAssetBodyDollarPriceMin).nullish(),
   "price_display": zod.enum(['Robux', 'USD', 'Both']).optional(),
-  "category": zod.enum(['UI', 'Scripts', '3D Models', 'Maps']).optional(),
+  "creator": zod.string().min(1).optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "category": zod.string().min(1).optional(),
   "image_urls": zod.array(zod.string()).min(1).optional(),
   "discord_link": zod.string().optional()
 })
@@ -178,7 +234,9 @@ export const UpdateAssetResponse = zod.object({
   "robux_price": zod.number().min(updateAssetResponseRobuxPriceMin).nullable(),
   "dollar_price": zod.number().min(updateAssetResponseDollarPriceMin).nullable(),
   "price_display": zod.enum(['Robux', 'USD', 'Both']),
-  "category": zod.enum(['UI', 'Scripts', '3D Models', 'Maps']),
+  "creator": zod.string(),
+  "tags": zod.array(zod.string()),
+  "category": zod.string(),
   "image_urls": zod.array(zod.string()),
   "discord_link": zod.string(),
   "created_at": zod.coerce.date(),

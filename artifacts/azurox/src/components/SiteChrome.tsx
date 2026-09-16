@@ -117,16 +117,17 @@ export function SiteHeader() {
               </div>
               <button type="button" onClick={() => setUnlockOpen(false)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Close admin unlock"><X className="h-4 w-4" /></button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">{statusQuery.data?.configured ? 'Enter your admin password to open the dashboard.' : 'First time here? Use AdminPassword123 to create the admin password.'}</p>
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">{statusQuery.data?.configured ? 'Enter your admin password to open the dashboard.' : 'Create a private admin password to finish the first-time setup.'}</p>
             <input
               autoFocus
               required
               minLength={8}
               type="password"
+              autoComplete={statusQuery.data?.configured ? 'current-password' : 'new-password'}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="admin-input mt-5"
-              placeholder="AdminPassword123"
+              placeholder="Enter password"
               aria-label="Admin password"
               data-testid="input-quick-admin-password"
             />

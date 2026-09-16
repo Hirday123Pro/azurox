@@ -26,16 +26,6 @@ export const AssetPriceDisplay = {
   Both: 'Both',
 } as const;
 
-export type AssetCategory = typeof AssetCategory[keyof typeof AssetCategory];
-
-
-export const AssetCategory = {
-  UI: 'UI',
-  Scripts: 'Scripts',
-  '3D_Models': '3D Models',
-  Maps: 'Maps',
-} as const;
-
 export interface Asset {
   id: number;
   title: string;
@@ -53,7 +43,9 @@ export interface Asset {
      */
   dollar_price: number | null;
   price_display: AssetPriceDisplay;
-  category: AssetCategory;
+  creator: string;
+  tags: string[];
+  category: string;
   image_urls: string[];
   discord_link: string;
   created_at: string;
@@ -77,16 +69,6 @@ export const AssetInputPriceDisplay = {
   Both: 'Both',
 } as const;
 
-export type AssetInputCategory = typeof AssetInputCategory[keyof typeof AssetInputCategory];
-
-
-export const AssetInputCategory = {
-  UI: 'UI',
-  Scripts: 'Scripts',
-  '3D_Models': '3D Models',
-  Maps: 'Maps',
-} as const;
-
 export interface AssetInput {
   /** @minLength 1 */
   title: string;
@@ -106,7 +88,11 @@ export interface AssetInput {
      */
   dollar_price?: number | null;
   price_display: AssetInputPriceDisplay;
-  category: AssetInputCategory;
+  /** @minLength 1 */
+  creator: string;
+  tags: string[];
+  /** @minLength 1 */
+  category: string;
   /** @minItems 1 */
   image_urls: string[];
   discord_link: string;
@@ -129,16 +115,6 @@ export const AssetUpdatePriceDisplay = {
   Both: 'Both',
 } as const;
 
-export type AssetUpdateCategory = typeof AssetUpdateCategory[keyof typeof AssetUpdateCategory];
-
-
-export const AssetUpdateCategory = {
-  UI: 'UI',
-  Scripts: 'Scripts',
-  '3D_Models': '3D Models',
-  Maps: 'Maps',
-} as const;
-
 export interface AssetUpdate {
   /** @minLength 1 */
   title?: string;
@@ -158,7 +134,11 @@ export interface AssetUpdate {
      */
   dollar_price?: number | null;
   price_display?: AssetUpdatePriceDisplay;
-  category?: AssetUpdateCategory;
+  /** @minLength 1 */
+  creator?: string;
+  tags?: string[];
+  /** @minLength 1 */
+  category?: string;
   /** @minItems 1 */
   image_urls?: string[];
   discord_link?: string;
@@ -169,6 +149,17 @@ export interface MarketplaceSummary {
   category_count: number;
   /** @nullable */
   newest_asset: string | null;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
+export interface CategoryInput {
+  /** @minLength 1 */
+  name: string;
 }
 
 export interface AdminStatus {
@@ -205,6 +196,13 @@ export type NotFoundResponse = Error;
 export type ListAssetsParams = {
 search?: string;
 category?: string;
+creator?: string;
+/**
+ * Comma-separated tags; an asset must contain every selected tag.
+ */
+tags?: string;
+min_price?: string;
+max_price?: string;
 sort?: ListAssetsSort;
 };
 
@@ -212,6 +210,8 @@ export type ListAssetsSort = typeof ListAssetsSort[keyof typeof ListAssetsSort];
 
 
 export const ListAssetsSort = {
+  a_z: 'a_z',
+  z_a: 'z_a',
   newest: 'newest',
   oldest: 'oldest',
   price_low: 'price_low',
